@@ -24,10 +24,10 @@ document.addEventListener("scroll",(e)=>{
       var title=d.querySelector("#app > section.content > div:nth-child(1) > div > div > div.box-header.with-border.nov-title-box > span.novel-title > div");
       var text=d.querySelector("#app > section.content > div:nth-child(1) > div > div > div.box-body.nvl-content");
       
-      textmain.innerHTML+="<p align=center>"+title.innerText+"</p>";
+      textmain.innerHTML+="<br><br><p align=center>"+title.innerText+"</p>";
       textmain.innerHTML+=text.innerHTML;
       nextlink=d.querySelector("#app > section.content > div:nth-child(1) > div > div > div.box-footer > span.next > a");
-      if(nextlink==null)textmain.innerHTML+="<p align=center>沒有下一章了</p>";
+      if(nextlink==null)textmain.innerHTML+="<br><br><p align=center>沒有下一章了</p>";
       loading=0;
     });
   }
