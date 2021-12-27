@@ -3,7 +3,7 @@
 // @namespace   Violentmonkey Scripts
 // @match       http*://www.pixiv.net/*
 // @grant       none
-// @version     1.0
+// @version     1.1
 // @author      -
 // @description 2021/12/25 下午3:47:33
 // ==/UserScript==
@@ -21,10 +21,10 @@ function waitForElement(element,selector,func,update=100,limit=Infinity){
   return new Promise((r,rj)=>{
     var id=setInterval(()=>{
     if(limit--){
-      if(DEBUG)console.log("searching");
+      if(DEBUG)console.log("searching",selector);
       if(DEBUG)console.log("limit:",limit);
       var select=element.querySelectorAll(selector);
-      if(select===null||select.length==0||!func(select))return;
+      if(select==null||select.length==0||!func(select))return;
       if(DEBUG)console.log("ok");
       clearInterval(id);
       r(select);
@@ -38,7 +38,7 @@ function waitForElement(element,selector,func,update=100,limit=Infinity){
 var writing=0;//鎖定寫入
 function main(e){
   if(/tags\/\S*\/artworks(\?p=\d*)?/.test(window.location.href) ){//確定網址格式為搜尋圖片
-    waitForElement(document.querySelector("#root"),"[href$=\"/premium/lead/lp?g=anchor&i=popular_works_list&p=free_campaign&page=visitor\"]",(s)=>{
+    waitForElement(document,"a[href$=\"/premium/lead/lp?g=anchor&i=popular_works_list&p=free_campaign&page=visitor\"]",(s)=>{
       //驗證所求元素&其子元素已生成
       if(DEBUG)console.log("testing");
       try{
@@ -46,7 +46,6 @@ function main(e){
         var aside=a.previousSibling;
         aside.querySelector("ul").dataset;
         aside.querySelector("a").dataset;
-        aside.querySelector("img").dataset;
         return true;
       }catch{
         return false;
@@ -67,15 +66,25 @@ function main(e){
       btn.style.display="none";//隱藏premium按鈕
       
       var template=ul.children[0].cloneNode(true);//複製熱門作品元素格式樣本
-      var new_li=function(userId,artworksId,alt,src){//依據樣本寫入所需元素
+      var new_li=function(userId,artworksId,alt,title,src){//依據樣本寫入所需元素
         var clone=template.cloneNode(true);
+        if(DEBUG)console.log(clone);
         var clone_a=clone.querySelector("a");
         clone_a.dataset.gtmUserId=userId;
         clone_a.dataset.gtmValue =artworksId;
         clone_a.href="/artworks/"+artworksId;
         var clone_img=clone.querySelector("img");
+        if(clone_img==null){
+          if(DEBUG)console.log("no img");
+          var clone_a_div=clone_a.querySelector("div");
+          clone_a_div.innerHTML="";
+          clone_img=document.createElement("img");
+          clone_img.style.width="100%";
+          clone_img.style.height="100%";
+          clone_a_div.appendChild(clone_img);
+        }
         clone_img.alt=alt;
-        clone_img.title=alt;
+        clone_img.title=title;
         clone_img.src=src;
         return clone;
       }
@@ -86,6 +95,7 @@ function main(e){
       var data=await fetch("https://www.pixiv.net/ajax/search/artworks/"+searchTags).then((response)=>{
         return response.json();
       });
+      if(DEBUG)console.log("data",data);
       
       //提出熱門作品
       var popular=data["body"]["popular"];
@@ -107,20 +117,26 @@ function main(e){
       //移除先前生成元素
       for(var v of ul.querySelectorAll(".popularAppend")){
         v.remove();
+        if(DEBUG)console.log("remove",v);
       }
       
+      if(DEBUG)console.log("popular",popular);
       for(var v of popular){
-        var li=new_li(v.userId,v.id,v.alt,v.url);//生成熱門作品元素
+        if(DEBUG)console.log("-");
+        var li=new_li(v.userId,v.id,v.alt,v.title,v.url);//生成熱門作品元素
+        if(DEBUG)console.log("--");
         li.style.marginLeft="0px";//移除預設寬度
         li.style.flexBasis="9.75%";//9個作品為一行
         li.style.margin="8px";//設置邊框
         li.className="popularAppend";//移除所有class
         ul.appendChild(li);
+        if(DEBUG)console.log("li",li);
       }
-      if(DEBUG)console.log(popular);
+      
       // ul.style.width=112*popular.length+"px";
       // ul.parentNode.parentNode.parentNode.style.width=112*popular.length+8+"px";
       writing=0;
+      if(DEBUG)console.log("end");
     }).catch((s)=>{
       
     });
