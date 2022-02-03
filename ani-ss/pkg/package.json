@@ -1,0 +1,21 @@
+{
+  "name": "ani-ss",
+  "collaborators": [
+    "Nick <cupofpho@gmail.com>"
+  ],
+  "description": "super sampling for the web",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pinnouse/ani-ss"
+  },
+  "files": [
+    "ani_ss_bg.wasm",
+    "ani_ss.js",
+    "ani_ss.d.ts"
+  ],
+  "module": "ani_ss.js",
+  "types": "ani_ss.d.ts",
+  "sideEffects": false
+}
