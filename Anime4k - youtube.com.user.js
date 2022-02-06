@@ -43,7 +43,7 @@
     canv.style.top=vid.style.top;
   });
   document.addEventListener("fullscreenchange",async()=>{
-    await new Promise(r=>setTimeout(r,100));
+    await new Promise(r=>setTimeout(r,200));
     canv.style.width=vid.style.width;
     canv.style.height=vid.style.height;
     canv.style.left=vid.style.left;
