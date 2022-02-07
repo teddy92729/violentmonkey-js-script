@@ -2,56 +2,81 @@
 // @name        kemono.party faster
 // @namespace   Violentmonkey Scripts
 // @match       https://kemono.party/*/user/*/post/*
-// @grant       none
-// @version     1.0
+// @version     1.1
 // @author      -
 // @description 2022/1/31 下午1:08:03
 // ==/UserScript==
+
+var style=document.createElement("style");
+style.innerText=`
+  .pageNum{
+    height:22px;
+    width:100%;
+    background:#E6E6E6;
+    margin:30px 0px;
+    font:bold 18px Arial;
+    color:black;
+    text-align:center;
+    display:block;
+  }
+`;
+document.head.appendChild(style);
+
 var file=document.querySelectorAll("a.fileThumb.image-link");
 var imgLinks=[];
 for(var f of file){
   var href=f.href.split("/").slice(3).join("/");
   imgLinks.push(href);
 }
-var server=[
-  "https://data1.kemono.party/",
-  "https://data2.kemono.party/",
-  "https://data3.kemono.party/",
-  "https://data4.kemono.party/",
-  // "https://data5.kemono.party/",
-  // "https://data6.kemono.party/",
-  // "https://data7.kemono.party/",
-  // "https://data8.kemono.party/",
-];
-var complete=[];
-for(var index in server)complete.push(0);
+// console.log(imgLinks);
 
-console.log(imgLinks);
+
+var server=[]
+for(let index of Array(8).keys()){
+  server.push(`https://data${index+1}.kemono.party/`);
+}
+
+
+complete=Array(8).fill(null);
+const getServer=function(){
+  let id=Math.floor(Math.random()*server.length);
+  if(!complete[id]||complete[id].complete){
+    return id;
+  }
+  return null;
+}
+
+
 file=document.querySelector("div.post__files");
 file.innerHTML="";
 
-var len=document.createElement("p");
-len.innerText="length="+imgLinks.length+":"+server.length;
+var len=document.createElement("div");
+len.className="pageNum";
+len.innerText="length="+imgLinks.length;
 file.appendChild(len);
 
 var id=setInterval((function(){
   var imgC=0;
   return function(){
-    for(var index in server){
-      if(imgC>=imgLinks.length){
-        clearInterval(id);
-        var done=document.createElement("p");
-        done.innerText="done";
-        file.appendChild(done);
-        return;
-      }
-      if(!complete[index]||complete[index].complete){
-        var img=document.createElement("img");
-        img.src=server[index]+imgLinks[imgC];
-        file.appendChild(img);
-        complete[index]=img;
-        imgC+=1;
-      }
+    let serverId=getServer();
+    if(imgC>=imgLinks.length){
+      clearInterval(id);
+      var done=document.createElement("div");
+      done.innerText="done";
+      done.className="pageNum";
+      file.appendChild(done);
+      return;
+    }else if(serverId!=null){
+      var d=document.createElement("div");
+      d.innerText=imgC;
+      d.className="pageNum";
+      file.appendChild(d);
+      
+      var img=document.createElement("img");
+      img.src=server[serverId]+imgLinks[imgC];
+      complete[serverId]=img;
+      file.appendChild(img);
+      imgC+=1;
     }
-  };
+  }
 })(),200);
