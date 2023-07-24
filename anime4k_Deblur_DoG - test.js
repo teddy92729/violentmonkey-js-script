@@ -3,63 +3,14 @@
 // @namespace   Violentmonkey Scripts
 // @match       https://*/*.mp4
 // @grant       none
-// @version     1.0
+// @version     1.6
 // @author      -
 // @require     https://teddy92729.github.io/elementCreated.js
 // @require     https://pixijs.download/release/pixi.js
 // @description 2022/11/28 下午5:26:55
 // ==/UserScript==
 
-function getVideoCanvas(videoElement){
-  return new Promise(async(r0)=>{
-    (new Promise(async (r1)=>{
-      const video=(typeof videoElement === "string")?(await elementCreated(videoElement)):videoElement;
-      if(video.readyState===4)
-        r1(video);
-      else
-        video.addEventListener("loadedmetadata",()=>{r1(video)});
-    })).then((video)=>{
-
-      const width=video.videoWidth;
-      const height=video.videoHeight;
-
-      let render = new PIXI.Renderer({ width: width, height: height });
-      let canvas= render.view;
-      var stage = new PIXI.Container();
-
-      let sprite = PIXI.Sprite.from(video);
-      stage.addChild(sprite);
-
-      let update=(function update_init(){
-        return function(){
-          let $this = video;
-          if (!$this.paused && !$this.ended) {
-            render.render(stage);
-            requestAnimationFrame(update);
-          }
-        }
-      })();
-
-      video.parentNode.insertBefore(canvas,video.nextSibling);
-
-      canvas.height=height;
-      canvas.width =width;
-      canvas.className+=` ${video.className}`;
-      canvas.style.position="absolute";
-      canvas.style.top="50%";
-      canvas.style.left="50%";
-      canvas.style.transform="translate(-50%, -50%)";
-      canvas.style.height="100%";
-      canvas.style.width="unset";
-
-      video.addEventListener("play",update);
-      update();
-      r0([video,stage]);
-    });
-  });
-}
-
-let anime4k_deblur_dog_frag=`
+const anime4k_deblur_dog_frag=`
 precision highp float;
 varying vec2 vTextureCoord;
 uniform vec4 inputSize;
@@ -67,7 +18,7 @@ uniform sampler2D uSampler;
 //-------------------------------------------
 #define HOOKED_pos      vTextureCoord
 #define HOOKED_tex(pos) texture2D(uSampler, pos)
-#define HOOKED_pt       1.0/inputSize.xy
+#define HOOKED_pt       inputSize.zw
 
 float get_luma(vec4 rgba) {
 	return dot(vec4(0.299, 0.587, 0.114, 0.0), rgba);
@@ -170,21 +121,209 @@ void main(){
     gl_FragColor=Apply_tex(HOOKED_pos);
 }
 `;
+const vertex=
+`#version 300 es
+in vec2 aVertexPosition;
+uniform mat3 projectionMatrix;
+out vec2 vTextureCoord;
+
+uniform vec4 inputSize;
+uniform vec4 outputFrame;
+
+vec4 filterVertexPosition( void ){
+    vec2 position = aVertexPosition * max(outputFrame.zw, vec2(0.)) + outputFrame.xy;
+
+    return vec4((projectionMatrix * vec3(position, 1.0)).xy, 0.0, 1.0);
+}
+
+vec2 filterTextureCoord( void ){
+    return aVertexPosition * (outputFrame.zw * inputSize.zw);
+}
+
+void main(void){
+    gl_Position = filterVertexPosition();
+    vTextureCoord = filterTextureCoord();
+}
+`;
+
+const cartoon_frag=
+`#version 300 es
+precision highp float;
+in vec2 vTextureCoord;
+uniform vec4 inputSize;
+uniform sampler2D uSampler;
+uniform sampler2D Orginal;
+out vec4 color;
+//-------------------------------------------
+#define MAIN_pos      vTextureCoord
+#define MAIN_tex(pos) texture(uSampler, pos)
+#define Orginal_tex(pos) texture(Orginal, pos)
+#define MAIN_pt       inputSize.zw
+#define MAIN_texOff(offset) MAIN_tex(MAIN_pos+(offset)*MAIN_pt)
+//-------------------------------------------
+#define EdgeSlope 2.0
+#define Power     0.1
+float get_luma(vec4 rgba) {
+	return dot(vec4(0.299, 0.587, 0.114, 0.0), rgba);
+}
+vec4 hook() {
+    float diff1=get_luma(MAIN_texOff(vec2(1,1)));
+    diff1=get_luma(MAIN_texOff(vec2(-1,-1)))-diff1;
+    float diff2=get_luma(MAIN_texOff(vec2(1,-1)));
+    diff2=get_luma(MAIN_texOff(vec2(-1,1)))-diff2;
+    float edge=diff1*diff1+diff2+diff2;
+    return clamp(pow(abs(edge), EdgeSlope) * -Power + MAIN_tex(MAIN_pos),0.0,1.0);
+}
+void main(){
+    color=hook();
+}
+`;
+const cas_frag=
+`#version 300 es
+precision highp float;
+in vec2 vTextureCoord;
+uniform vec4 inputSize;
+uniform sampler2D uSampler;
+uniform sampler2D Orginal;
+out vec4 color;
+//-------------------------------------------
+#define MAIN_pos      vTextureCoord
+#define MAIN_tex(pos) texture(uSampler, pos)
+#define Orginal_tex(pos) texture(Orginal, pos)
+#define MAIN_pt       inputSize.zw
+#define MAIN_texOff(offset) MAIN_tex(MAIN_pos+(offset)*MAIN_pt)
+//-------------------------------------------
+#define Contrast    0.5
+#define Sharpening  0.5
+vec4 cas(){
+  vec3 b = MAIN_texOff(vec2( 0,-1)).rgb;
+  vec3 d = MAIN_texOff(vec2(-1, 0)).rgb;
+
+  vec3 e = MAIN_texOff(vec2(0,0)).rgb;
+  vec3 f = MAIN_texOff(vec2(1,0)).rgb;
+
+  vec3 h = MAIN_texOff(vec2(0,1)).rgb;
+  vec3 i = MAIN_texOff(vec2(1,1)).rgb;
+
+  vec3 g = MAIN_texOff(vec2(-1, 1)).rgb;
+	vec3 a = MAIN_texOff(vec2(-1,-1)).rgb;
+	vec3 c = MAIN_texOff(vec2( 1,-1)).rgb;
+
+  vec3 mnRGB = min(min(min(d, e), min(f, b)), h);
+	vec3 mnRGB2 = min(mnRGB, min(min(a, c), min(g, i)));
+	mnRGB += mnRGB2;
+
+  vec3 mxRGB = max(max(max(d, e), max(f, b)), h);
+  vec3 mxRGB2 = max(mxRGB, max(max(a, c), max(g, i)));
+	mxRGB += mxRGB2;
 
 
+  vec3 rcpMRGB = 1.0/mxRGB;
+	vec3 ampRGB = clamp(min(mnRGB, 2.0 - mxRGB) * rcpMRGB,0.0,1.0);
 
-getVideoCanvas("video").then(([video,stage])=>{
-  let noiseFilter=new PIXI.filters.NoiseFilter();
-  noiseFilter.noise=0.05;
+  ampRGB = 1.0/sqrt(ampRGB);
 
-  let anime4k_deblur_dog = new PIXI.Filter(null, anime4k_deblur_dog_frag);
-  console.log(video,stage,anime4k_deblur_dog);
-  document.body.addEventListener("keydown",(e)=>{
-    if(e&&(e.code==="KeyI")){
-      anime4k_deblur_dog.enabled=!anime4k_deblur_dog.enabled;
-      console.log(anime4k_deblur_dog.enabled);
-    }
+  float peak = -3.0 * Contrast + 8.0;
+	vec3 wRGB = -1.0/(ampRGB * peak);
+
+	vec3 rcpWeightRGB = 1.0/(4.0 * wRGB + 1.0);
+
+	vec3 window = (b + d) + (f + h);
+	vec3 outColor = clamp((window * wRGB + e) * rcpWeightRGB,0.0,1.0);
+
+	return vec4(mix(e, outColor, Sharpening),1.0);
+}
+
+void main(){
+    color=cas();
+}
+`;
+function getVideoCanvas(videoElement){
+  return new Promise(async(r0)=>{
+    (new Promise(async (r1)=>{
+      const video=(typeof videoElement === "string")?(await elementCreated(videoElement)):videoElement;
+      if(video.readyState===4)
+        r1(video);
+      else
+        video.addEventListener("loadedmetadata",()=>{r1(video)});
+    })).then((video)=>{
+      let scale=Math.sqrt((window.outerWidth*window.outerHeight)/(video.videoWidth*video.videoHeight));
+      scale=Math.min(scale,2);
+      let width=scale*video.videoWidth;
+      let height=scale*video.videoHeight;
+      console.log(`${video.videoWidth}x${video.videoHeight}=>${width}x${height}`);
+
+      let renderer = new PIXI.Renderer({ width: width, height: height});
+      let canvas= renderer.view;
+      let stage = new PIXI.Container();
+
+      let texture= PIXI.Texture.from(video);
+      let sprite = new PIXI.Sprite(texture);
+      sprite.width=width;
+      sprite.height=height;
+      stage.addChild(sprite);
+
+      video.addEventListener("resize",()=>{
+        texture.destroy();
+        texture=PIXI.Texture.from(video);
+        sprite.texture=texture;
+        console.log(`${video.videoWidth}x${video.videoHeight}=>${width}x${height}`);
+      });
+
+      let anime4k_deblur_dog         = new PIXI.Filter(null  , anime4k_deblur_dog_frag);
+      let cartoon                    = new PIXI.Filter(vertex, cartoon_frag);
+      let cas                        = new PIXI.Filter(vertex, cas_frag);
+      let noiseFilter                = new PIXI.filters.NoiseFilter();
+      noiseFilter.noise=0.03;
+
+      let filters=[
+                    anime4k_deblur_dog,
+                    cartoon,
+                    cas,
+                    noiseFilter,
+                   ];
+      stage.filters=filters;
+
+      let update=(function update_init(){
+        return function(){
+          let $this = video;
+          if (!$this.paused && !$this.ended) {
+            renderer.render(stage);
+            requestAnimationFrame(update);
+          }
+        }
+      })();
+
+      document.body.addEventListener("keydown",(e)=>{
+        if(e&&(e.code==="KeyI")){
+          let toggle=!stage.filters[0].enabled;
+          for(let i in stage.filters){
+            stage.filters[i].enabled=toggle;
+          }
+          renderer.render(stage);
+          console.log(toggle);
+        }
+        // console.log(e,e.code)
+      });
+
+      video.parentNode.insertBefore(canvas,video.nextSibling);
+
+      canvas.height=height;
+      canvas.width =width;
+      canvas.className+=` ${video.className}`;
+      canvas.style.position="absolute";
+      canvas.style.top="50%";
+      canvas.style.left="50%";
+      canvas.style.transform="translate(-50%, -50%)";
+      canvas.style.height="100%";
+      canvas.style.width="unset";
+
+      video.addEventListener("play",update);
+      update();
+      r0([video,stage,renderer]);
+    });
   });
-
-  stage.filters=[anime4k_deblur_dog,noiseFilter];
+}
+getVideoCanvas("video").then(([video,stage,renderer])=>{
+  console.log("anime4k!");
 });
