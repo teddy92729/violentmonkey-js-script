@@ -2,8 +2,10 @@
 // @name        anime4k_Deblur_DoG - test
 // @namespace   Violentmonkey Scripts
 // @match       https://*/*.mp4
+// @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
+// @match       https://www.youtube.com/watch?v=*
 // @grant       none
-// @version     1.6
+// @version     1.7
 // @author      -
 // @require     https://teddy92729.github.io/elementCreated.js
 // @require     https://pixijs.download/release/pixi.js
@@ -263,10 +265,27 @@ function getVideoCanvas(videoElement){
       sprite.height=height;
       stage.addChild(sprite);
 
+      function updateStyle(){
+        for(let i=0;i<video.style.length;++i){
+          canvas.style[video.style[i]]=video.style[video.style[i]];
+        }
+        if(video.style.length){
+          canvas.style.transform="";
+        }
+      }
+
       video.addEventListener("resize",()=>{
         texture.destroy();
         texture=PIXI.Texture.from(video);
         sprite.texture=texture;
+        updateStyle();
+        console.log(`${video.videoWidth}x${video.videoHeight}=>${width}x${height}`);
+      });
+      video.addEventListener("loadedmetadata",()=>{
+        texture.destroy();
+        texture=PIXI.Texture.from(video);
+        sprite.texture=texture;
+        updateStyle();
         console.log(`${video.videoWidth}x${video.videoHeight}=>${width}x${height}`);
       });
 
@@ -294,17 +313,17 @@ function getVideoCanvas(videoElement){
         }
       })();
 
-      document.body.addEventListener("keydown",(e)=>{
-        if(e&&(e.code==="KeyI")){
-          let toggle=!stage.filters[0].enabled;
-          for(let i in stage.filters){
-            stage.filters[i].enabled=toggle;
-          }
-          renderer.render(stage);
-          console.log(toggle);
-        }
-        // console.log(e,e.code)
-      });
+      // document.body.addEventListener("keydown",(e)=>{
+      //   if(e&&(e.code==="KeyI")){
+      //     let toggle=!stage.filters[0].enabled;
+      //     for(let i in stage.filters){
+      //       stage.filters[i].enabled=toggle;
+      //     }
+      //     renderer.render(stage);
+      //     console.log(toggle);
+      //   }
+      //   // console.log(e,e.code)
+      // });
 
       video.parentNode.insertBefore(canvas,video.nextSibling);
 
@@ -312,11 +331,19 @@ function getVideoCanvas(videoElement){
       canvas.width =width;
       canvas.className+=` ${video.className}`;
       canvas.style.position="absolute";
+      canvas.style.display="block";
       canvas.style.top="50%";
       canvas.style.left="50%";
       canvas.style.transform="translate(-50%, -50%)";
-      canvas.style.height="100%";
-      canvas.style.width="unset";
+      canvas.style.height="unset";
+      canvas.style.width="100%";
+      updateStyle();
+      let cssObserver=new MutationObserver(()=>{
+        updateStyle();
+      })
+      cssObserver.observe(video,{ attributes : true, attributeFilter : ["style"] });
+
+
 
       video.addEventListener("play",update);
       update();
