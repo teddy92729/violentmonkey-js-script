@@ -3,9 +3,8 @@
 // @namespace   Violentmonkey Scripts
 // @match       https://*/*.mp4
 // @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
-// @match       https://www.youtube.com/watch?v=*
 // @grant       none
-// @version     1.7
+// @version     1.8
 // @author      -
 // @require     https://teddy92729.github.io/elementCreated.js
 // @require     https://pixijs.download/release/pixi.js
@@ -240,6 +239,63 @@ void main(){
     color=cas();
 }
 `;
+//https://github.com/byxor/thug-pro-reshade/blob/master/THUG%20Pro/reshade-shaders/Shaders/FakeHDR.fx
+const hdr_frag=
+`#version 300 es
+precision highp float;
+in vec2 vTextureCoord;
+uniform vec4 inputSize;
+uniform sampler2D uSampler;
+uniform sampler2D Orginal;
+out vec4 color;
+//-------------------------------------------
+#define MAIN_pos      vTextureCoord
+#define MAIN_tex(pos) texture(uSampler, pos)
+#define Orginal_tex(pos) texture(Orginal, pos)
+#define MAIN_pt       inputSize.zw
+#define MAIN_texOff(offset) MAIN_tex(MAIN_pos+(offset)*MAIN_pt)
+//-------------------------------------------
+
+#define HDRPower 1.8
+#define radius1 0.793
+#define radius2 0.87
+vec4 hook(){
+	vec3 color = MAIN_tex(MAIN_pos).rgb;
+
+	vec3 bloom_sum1 = MAIN_texOff(vec2(1.5, -1.5) * radius1 ).rgb;
+	bloom_sum1 += MAIN_texOff(vec2(-1.5, -1.5) * radius1 ).rgb;
+	bloom_sum1 += MAIN_texOff(vec2( 1.5,  1.5) * radius1 ).rgb;
+	bloom_sum1 += MAIN_texOff(vec2(-1.5,  1.5) * radius1 ).rgb;
+	bloom_sum1 += MAIN_texOff(vec2( 0.0, -2.5) * radius1 ).rgb;
+	bloom_sum1 += MAIN_texOff(vec2( 0.0,  2.5) * radius1 ).rgb;
+	bloom_sum1 += MAIN_texOff(vec2(-2.5,  0.0) * radius1 ).rgb;
+	bloom_sum1 += MAIN_texOff(vec2( 2.5,  0.0) * radius1 ).rgb;
+
+	bloom_sum1 *= 0.005;
+
+	vec3 bloom_sum2 = MAIN_texOff(vec2(1.5, -1.5) * radius2 ).rgb;
+	bloom_sum2 += MAIN_texOff(vec2(-1.5, -1.5) * radius2 ).rgb;
+	bloom_sum2 += MAIN_texOff(vec2( 1.5,  1.5) * radius2 ).rgb;
+	bloom_sum2 += MAIN_texOff(vec2(-1.5,  1.5) * radius2 ).rgb;
+	bloom_sum2 += MAIN_texOff(vec2( 0.0, -2.5) * radius2 ).rgb;
+	bloom_sum2 += MAIN_texOff(vec2( 0.0,  2.5) * radius2 ).rgb;
+	bloom_sum2 += MAIN_texOff(vec2(-2.5,  0.0) * radius2 ).rgb;
+	bloom_sum2 += MAIN_texOff(vec2( 2.5,  0.0) * radius2 ).rgb;
+
+	bloom_sum2 *= 0.010;
+
+	float dist = radius2 - radius1;
+	vec3 HDR = (color + (bloom_sum2 - bloom_sum1)) * dist;
+	vec3 blend = HDR + color;
+	color = pow(abs(blend), abs(vec3(HDRPower, HDRPower, HDRPower))) + HDR; // pow - don't use fractions for HDRpower
+
+	return vec4(clamp(color, 0.0, 1.0), 1.0);
+}
+
+void main(){
+    color=hook();
+}
+`;
 function getVideoCanvas(videoElement){
   return new Promise(async(r0)=>{
     (new Promise(async (r1)=>{
@@ -292,12 +348,14 @@ function getVideoCanvas(videoElement){
       let anime4k_deblur_dog         = new PIXI.Filter(null  , anime4k_deblur_dog_frag);
       let cartoon                    = new PIXI.Filter(vertex, cartoon_frag);
       let cas                        = new PIXI.Filter(vertex, cas_frag);
+      let hdr                        = new PIXI.Filter(vertex, hdr_frag);
       let noiseFilter                = new PIXI.filters.NoiseFilter();
       noiseFilter.noise=0.03;
 
       let filters=[
+                    hdr,
                     anime4k_deblur_dog,
-                    cartoon,
+                    // cartoon,
                     cas,
                     noiseFilter,
                    ];
@@ -313,17 +371,17 @@ function getVideoCanvas(videoElement){
         }
       })();
 
-      // document.body.addEventListener("keydown",(e)=>{
-      //   if(e&&(e.code==="KeyI")){
-      //     let toggle=!stage.filters[0].enabled;
-      //     for(let i in stage.filters){
-      //       stage.filters[i].enabled=toggle;
-      //     }
-      //     renderer.render(stage);
-      //     console.log(toggle);
-      //   }
-      //   // console.log(e,e.code)
-      // });
+      document.body.addEventListener("keydown",(e)=>{
+        if(e&&(e.code==="KeyI")){
+          let toggle=!stage.filters[0].enabled;
+          for(let i in stage.filters){
+            stage.filters[i].enabled=toggle;
+          }
+          renderer.render(stage);
+          console.log(toggle);
+        }
+        // console.log(e,e.code)
+      });
 
       video.parentNode.insertBefore(canvas,video.nextSibling);
 
@@ -338,10 +396,10 @@ function getVideoCanvas(videoElement){
       canvas.style.height="unset";
       canvas.style.width="100%";
       updateStyle();
-      let cssObserver=new MutationObserver(()=>{
-        updateStyle();
-      })
-      cssObserver.observe(video,{ attributes : true, attributeFilter : ["style"] });
+      // let cssObserver=new MutationObserver(()=>{
+      //   updateStyle();
+      // })
+      // cssObserver.observe(video,{ attributes : true, attributeFilter : ["style"] });
 
 
 
