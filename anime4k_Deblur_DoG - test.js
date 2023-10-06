@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name        anime4k_Deblur_DoG - test
 // @namespace   Violentmonkey Scripts
-// @match       https://*/*.mp4
+// @match       *://*/*.mp4
+// @match       *://*/*.webm
 // @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
 // @grant       none
 // @version     1.8
@@ -256,9 +257,9 @@ out vec4 color;
 #define MAIN_texOff(offset) MAIN_tex(MAIN_pos+(offset)*MAIN_pt)
 //-------------------------------------------
 
-#define HDRPower 1.8
-#define radius1 0.793
-#define radius2 0.87
+#define HDRPower 1.3
+#define radius1 7.475000
+#define radius2 7.547000
 vec4 hook(){
 	vec3 color = MAIN_tex(MAIN_pos).rgb;
 
@@ -350,12 +351,13 @@ function getVideoCanvas(videoElement){
       let cas                        = new PIXI.Filter(vertex, cas_frag);
       let hdr                        = new PIXI.Filter(vertex, hdr_frag);
       let noiseFilter                = new PIXI.filters.NoiseFilter();
-      noiseFilter.noise=0.03;
+      noiseFilter.noise=0.02;
+      let blurFilter                 = new PIXI.BlurFilter(2);
 
       let filters=[
+                    // cartoon,
                     hdr,
                     anime4k_deblur_dog,
-                    // cartoon,
                     cas,
                     noiseFilter,
                    ];
