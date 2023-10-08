@@ -5,7 +5,7 @@
 // @match       *://*/*.webm
 // @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
 // @grant       none
-// @version     1.8
+// @version     1.8.1
 // @author      -
 // @require     https://teddy92729.github.io/elementCreated.js
 // @require     https://pixijs.download/release/pixi.js
@@ -288,7 +288,7 @@ vec4 hook(){
 	float dist = radius2 - radius1;
 	vec3 HDR = (color + (bloom_sum2 - bloom_sum1)) * dist;
 	vec3 blend = HDR + color;
-	color = pow(abs(blend), abs(vec3(HDRPower, HDRPower, HDRPower))) + HDR; // pow - don't use fractions for HDRpower
+	color = pow(abs(blend), abs(vec3(HDRPower, HDRPower, HDRPower))) - HDR; // pow - don't use fractions for HDRpower
 
 	return vec4(clamp(color, 0.0, 1.0), 1.0);
 }
@@ -355,9 +355,10 @@ function getVideoCanvas(videoElement){
       let blurFilter                 = new PIXI.BlurFilter(2);
 
       let filters=[
-                    // cartoon,
+
                     hdr,
                     anime4k_deblur_dog,
+                    cartoon,
                     cas,
                     noiseFilter,
                    ];
