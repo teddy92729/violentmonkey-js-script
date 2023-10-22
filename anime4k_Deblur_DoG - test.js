@@ -3,11 +3,12 @@
 // @namespace   Violentmonkey Scripts
 // @match       *://*/*.mp4
 // @match       *://*/*.webm
+// @match       https://sn-video.com/video2019/index.php?data=*
 // @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
 // @match       https://www.youtube.com/watch?v=*
 // @grant       none
-// @version     2.0
-// @author      HYTeddy
+// @version     2.1
+// @author      -
 // @require     https://teddy92729.github.io/elementCreated.js
 // @require     https://pixijs.download/release/pixi.js
 // @description 2022/11/28 下午5:26:55
@@ -709,7 +710,8 @@ function getVideoCanvas(videoElement) {
             else
                 video.addEventListener("loadedmetadata", () => { r1(video) });
         }).then((video) => {
-            video.style.visibility="none";
+            video.style.visibility="hidden";
+
             let renderer = new PIXI.Renderer();
             let canvas = renderer.view;
             video.parentNode.insertBefore(canvas, video.nextSibling);
@@ -719,25 +721,26 @@ function getVideoCanvas(videoElement) {
             let sprite = new PIXI.Sprite(texture);
             stage.addChild(sprite);
 
+            let resize_mutex=0;
             let resize=()=> {
+                if(resize_mutex)return;
+                resize_mutex=1
                 setTimeout(()=>{
-                  video.pause();
-                  texture.update();
                   let style=window.getComputedStyle(video,null);
                   let width=parseInt(style.width.replace("px","")),
                       height=parseInt(style.height.replace("px",""));
                   let _height=height;
                   if(width/height>=1)
-                    height=width*video.videoHeight/video.videoWidth;
+                    height=Math.round(width*video.videoHeight/video.videoWidth);
                   else
-                    width=height*video.videoWidth/video.videoHeight;
+                    width=Math.round(height*video.videoWidth/video.videoHeight);
 
                   canvas.style.position = "absolute";
                   canvas.style.display = "block";
                   let transformT,transformL;
                   console.log(style.top,style.left);
                   if(style.top==="0px"||style.top==="auto")
-                    canvas.style.top=`${(_height-height)/2}px`;
+                    canvas.style.top=`${Math.round((_height-height)/2)}px`;
                   else
                     canvas.style.top=style.top;
                   canvas.style.left="50%";
@@ -747,13 +750,14 @@ function getVideoCanvas(videoElement) {
                   sprite.width = width;
                   sprite.height = height;
                   renderer.resize(width,height);
-                  video.play();
-                },100);
+                  resize_mutex=0;
+                },0);
             }
             resize();
             (new ResizeObserver(resize)).observe(video);
             // video.addEventListener("resize", resize);
-            video.addEventListener("loadedmetadata", resize);
+            video.addEventListener("progress", resize);
+
 
             let anime4k_deblur_dog = new PIXI.Filter(null, anime4k_deblur_dog_frag);
             let cartoon = new PIXI.Filter(vertex, cartoon_frag);
@@ -780,7 +784,7 @@ function getVideoCanvas(videoElement) {
                 // deband,
                 test,
                 // cartoon,
-                line,
+                // line,
                 anime4k_deblur_dog,
                 // cas,
                 // rsplitRGB,
@@ -796,7 +800,11 @@ function getVideoCanvas(videoElement) {
                 let $this = video;
                 if (!$this.paused && !$this.ended) {
                     renderer.render(stage);
-                    requestAnimationFrame(update);
+                    try{
+                      video.requestVideoFrameCallback(update);
+                    }catch(e){
+                      window.requestAnimationFrame(update);
+                    }
                 }
             }
             update();
