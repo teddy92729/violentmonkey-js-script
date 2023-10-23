@@ -7,12 +7,35 @@
 // @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
 // @match       https://www.youtube.com/watch?v=*
 // @grant       none
-// @version     2.1
-// @author      -
+// @version     2.1.1
+// @author      HYTeddy
 // @require     https://teddy92729.github.io/elementCreated.js
 // @require     https://pixijs.download/release/pixi.js
 // @description 2022/11/28 下午5:26:55
 // ==/UserScript==
+
+// MIT License
+
+// Copyright (c) 2019-2021 bloc97
+// All rights reserved.
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 const anime4k_deblur_dog_frag = `
 precision highp float;
@@ -721,11 +744,7 @@ function getVideoCanvas(videoElement) {
             let sprite = new PIXI.Sprite(texture);
             stage.addChild(sprite);
 
-            let resize_mutex=0;
             let resize=()=> {
-                if(resize_mutex)return;
-                resize_mutex=1
-                setTimeout(()=>{
                   let style=window.getComputedStyle(video,null);
                   let width=parseInt(style.width.replace("px","")),
                       height=parseInt(style.height.replace("px",""));
@@ -745,13 +764,15 @@ function getVideoCanvas(videoElement) {
                     canvas.style.top=style.top;
                   canvas.style.left="50%";
                   canvas.style.transform=`translate( -50%, 0%)`;
-
-                  console.log(`${video.videoWidth}x${video.videoHeight}=>${width}x${height}`);
+                  canvas.style.width=width+"px";
+                  canvas.style.height=height+"px";
+                  let scale=Math.min(2,3110400/(video.videoWidth*video.videoHeight));
+                  width=scale*video.videoWidth;
+                  height=scale*video.videoHeight;
+                  // console.log(`${video.videoWidth}x${video.videoHeight}=>${width}x${height}`);
                   sprite.width = width;
                   sprite.height = height;
                   renderer.resize(width,height);
-                  resize_mutex=0;
-                },0);
             }
             resize();
             (new ResizeObserver(resize)).observe(video);
@@ -777,21 +798,21 @@ function getVideoCanvas(videoElement) {
             let test=new PIXI.Filter(vertex,test_frag);
             let filters = [
                 // test,
-                // Anime4K_3DGraphics_AA_Upscale_x2_US1,
-                // Anime4K_3DGraphics_AA_Upscale_x2_US2,
-                // Anime4K_3DGraphics_AA_Upscale_x2_US3,
-                // Anime4K_3DGraphics_AA_Upscale_x2_US4,
+                Anime4K_3DGraphics_AA_Upscale_x2_US1,
+                Anime4K_3DGraphics_AA_Upscale_x2_US2,
+                Anime4K_3DGraphics_AA_Upscale_x2_US3,
+                Anime4K_3DGraphics_AA_Upscale_x2_US4,
                 // deband,
                 test,
+                hdr,
                 // cartoon,
-                // line,
+                line,
                 anime4k_deblur_dog,
                 // cas,
                 // rsplitRGB,
                 // fxaa,
                 noiseFilter,
                 // test,
-                hdr,
                 // splitRGB,
             ];
             stage.filters = filters;
