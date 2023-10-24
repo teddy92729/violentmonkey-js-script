@@ -7,16 +7,16 @@
 // @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
 // @match       https://www.youtube.com/watch?v=*
 // @grant       none
-// @version     2.1.1
+// @version     2.1.2
 // @author      HYTeddy
 // @require     https://teddy92729.github.io/elementCreated.js
-// @require     https://pixijs.download/release/pixi.js
+// @require     https://pixijs.download/v7.3.2/pixi.js
 // @description 2022/11/28 下午5:26:55
 // ==/UserScript==
 
 // MIT License
 
-// Copyright (c) 2019-2021 bloc97
+// Copyright (c) 2019-2021
 // All rights reserved.
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -360,7 +360,7 @@ void main(){
 }
 `;
 const splitRGB_frag =
-`#version 300 es
+    `#version 300 es
 precision highp float;
 in vec2 vTextureCoord;
 uniform vec4 inputSize;
@@ -392,8 +392,8 @@ void main() {
 }
 `;
 
-const Anime4K_3DGraphics_AA_Upscale_x2_US_frag1=
-`#version 300 es
+const Anime4K_3DGraphics_AA_Upscale_x2_US_frag1 =
+    `#version 300 es
 precision highp float;
 in vec2 vTextureCoord;
 uniform vec4 inputSize;
@@ -428,8 +428,8 @@ void main() {
     color = hook();
 }
 `;
-const Anime4K_3DGraphics_AA_Upscale_x2_US_frag2=
-`#version 300 es
+const Anime4K_3DGraphics_AA_Upscale_x2_US_frag2 =
+    `#version 300 es
 precision highp float;
 in vec2 vTextureCoord;
 uniform vec4 inputSize;
@@ -474,8 +474,8 @@ void main() {
     color = hook();
 }
 `;
-const Anime4K_3DGraphics_AA_Upscale_x2_US_frag3=
-`#version 300 es
+const Anime4K_3DGraphics_AA_Upscale_x2_US_frag3 =
+    `#version 300 es
 precision highp float;
 in vec2 vTextureCoord;
 uniform vec4 inputSize;
@@ -510,8 +510,8 @@ void main() {
     color = hook();
 }
 `;
-const Anime4K_3DGraphics_AA_Upscale_x2_US_frag4=
-`#version 300 es
+const Anime4K_3DGraphics_AA_Upscale_x2_US_frag4 =
+    `#version 300 es
 precision highp float;
 in vec2 vTextureCoord;
 uniform vec4 inputSize;
@@ -543,8 +543,8 @@ void main() {
     color = hook();
 }
 `;
-const test_frag=//use to deband
-`#version 300 es
+const test_frag =//use to deband
+    `#version 300 es
 precision highp float;
 in vec2 vTextureCoord;
 uniform vec4 inputSize;
@@ -603,8 +603,8 @@ void main() {
 `;
 
 //https://github.com/crosire/reshade-shaders/blob/slim/Shaders/Deband.fx
-const deband_frag=
-`#version 300 es
+const deband_frag =
+    `#version 300 es
 precision highp float;
 in vec2 vTextureCoord;
 uniform vec4 inputSize;
@@ -727,122 +727,122 @@ void main() {
 `;
 function getVideoCanvas(videoElement) {
     return new Promise(async (r1) => {
-            const video = (typeof videoElement === "string") ? (await elementCreated(videoElement)) : videoElement;
-            if (video.readyState >0)
-                r1(video);
+        const video = (typeof videoElement === "string") ? (await elementCreated(videoElement)) : videoElement;
+        if (video.readyState > 0)
+            r1(video);
+        else
+            video.addEventListener("loadedmetadata", () => { r1(video) });
+    }).then(async (video) => {
+        // let renderer = new PIXI.Renderer();
+        let renderer = await PIXI.autoDetectRenderer({});
+        let canvas = renderer.view;
+        video.parentNode.insertBefore(canvas, video.nextSibling);
+
+        let stage = new PIXI.Container();
+        let texture = PIXI.Texture.from(video);
+        let sprite = new PIXI.Sprite(texture);
+        stage.addChild(sprite);
+        video.style.visibility = "hidden";
+        let resize = () => {
+            let style = window.getComputedStyle(video, null);
+            let width = parseInt(style.width.replace("px", "")),
+                height = parseInt(style.height.replace("px", ""));
+            let _height = height;
+            if (width / height >= 1)
+                height = Math.round(width * video.videoHeight / video.videoWidth);
             else
-                video.addEventListener("loadedmetadata", () => { r1(video) });
-        }).then((video) => {
-            video.style.visibility="hidden";
+                width = Math.round(height * video.videoWidth / video.videoHeight);
 
-            let renderer = new PIXI.Renderer();
-            let canvas = renderer.view;
-            video.parentNode.insertBefore(canvas, video.nextSibling);
+            canvas.style.position = "absolute";
+            canvas.style.display = "block";
+            let transformT, transformL;
+            console.log(style.top, style.left);
+            if (style.top === "0px" || style.top === "auto")
+                canvas.style.top = `${Math.round((_height - height) / 2)}px`;
+            else
+                canvas.style.top = style.top;
+            canvas.style.left = "50%";
+            canvas.style.transform = `translate( -50%, 0%)`;
+            canvas.style.width = width + "px";
+            canvas.style.height = height + "px";
+            let scale = Math.min(2, 3110400 / (video.videoWidth * video.videoHeight));
+            width = scale * video.videoWidth;
+            height = scale * video.videoHeight;
+            // console.log(`${video.videoWidth}x${video.videoHeight}=>${width}x${height}`);
+            sprite.width = width;
+            sprite.height = height;
+            renderer.resize(width, height);
+        }
+        resize();
+        (new ResizeObserver(resize)).observe(video);
+        // video.addEventListener("resize", resize);
+        video.addEventListener("progress", resize);
 
-            let stage = new PIXI.Container();
-            let texture = PIXI.Texture.from(video);
-            let sprite = new PIXI.Sprite(texture);
-            stage.addChild(sprite);
 
-            let resize=()=> {
-                  let style=window.getComputedStyle(video,null);
-                  let width=parseInt(style.width.replace("px","")),
-                      height=parseInt(style.height.replace("px",""));
-                  let _height=height;
-                  if(width/height>=1)
-                    height=Math.round(width*video.videoHeight/video.videoWidth);
-                  else
-                    width=Math.round(height*video.videoWidth/video.videoHeight);
+        let anime4k_deblur_dog = new PIXI.Filter(null, anime4k_deblur_dog_frag);
+        let cartoon = new PIXI.Filter(vertex, cartoon_frag);
+        let cas = new PIXI.Filter(vertex, cas_frag);
+        let hdr = new PIXI.Filter(vertex, hdr_frag);
+        let noiseFilter = new PIXI.filters.NoiseFilter();
+        noiseFilter.noise = 0.02;
+        let line = new PIXI.Filter(vertex, line_frag);
+        let splitRGB = new PIXI.Filter(vertex, splitRGB_frag, { strength: 1.0 });
+        let rsplitRGB = new PIXI.Filter(vertex, splitRGB_frag, { strength: -1.0 });
+        let fxaa = new PIXI.filters.FXAAFilter();
+        let Anime4K_3DGraphics_AA_Upscale_x2_US1 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag1);
+        let Anime4K_3DGraphics_AA_Upscale_x2_US2 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag2);
+        let Anime4K_3DGraphics_AA_Upscale_x2_US3 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag3);
+        let Anime4K_3DGraphics_AA_Upscale_x2_US4 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag4, { Orginal: texture });
+        let deband = new PIXI.Filter(vertex, deband_frag);
+        let test = new PIXI.Filter(vertex, test_frag);
+        let filters = [
+            // test,
+            Anime4K_3DGraphics_AA_Upscale_x2_US1,
+            Anime4K_3DGraphics_AA_Upscale_x2_US2,
+            Anime4K_3DGraphics_AA_Upscale_x2_US3,
+            Anime4K_3DGraphics_AA_Upscale_x2_US4,
+            // deband,
+            test,
+            hdr,
+            // cartoon,
+            line,
+            anime4k_deblur_dog,
+            // cas,
+            // rsplitRGB,
+            // fxaa,
+            noiseFilter,
+            // test,
+            // splitRGB,
+        ];
+        stage.filters = filters;
 
-                  canvas.style.position = "absolute";
-                  canvas.style.display = "block";
-                  let transformT,transformL;
-                  console.log(style.top,style.left);
-                  if(style.top==="0px"||style.top==="auto")
-                    canvas.style.top=`${Math.round((_height-height)/2)}px`;
-                  else
-                    canvas.style.top=style.top;
-                  canvas.style.left="50%";
-                  canvas.style.transform=`translate( -50%, 0%)`;
-                  canvas.style.width=width+"px";
-                  canvas.style.height=height+"px";
-                  let scale=Math.min(2,3110400/(video.videoWidth*video.videoHeight));
-                  width=scale*video.videoWidth;
-                  height=scale*video.videoHeight;
-                  // console.log(`${video.videoWidth}x${video.videoHeight}=>${width}x${height}`);
-                  sprite.width = width;
-                  sprite.height = height;
-                  renderer.resize(width,height);
+        let update_lock = 1;
+        let update = () => {
+            if (!video.paused && !video.ended && update_lock) {
+                update_lock = 0;
+                renderer.render(stage);
+                setTimeout(() => {
+                    update_lock = 1;
+                    window.requestAnimationFrame(update);
+                }, 20);
+
             }
-            resize();
-            (new ResizeObserver(resize)).observe(video);
-            // video.addEventListener("resize", resize);
-            video.addEventListener("progress", resize);
+        }
+        update();
+        video.addEventListener("play", update);
 
-
-            let anime4k_deblur_dog = new PIXI.Filter(null, anime4k_deblur_dog_frag);
-            let cartoon = new PIXI.Filter(vertex, cartoon_frag);
-            let cas = new PIXI.Filter(vertex, cas_frag);
-            let hdr = new PIXI.Filter(vertex, hdr_frag);
-            let noiseFilter = new PIXI.filters.NoiseFilter();
-            noiseFilter.noise = 0.02;
-            let line = new PIXI.Filter(vertex, line_frag);
-            let splitRGB = new PIXI.Filter(vertex, splitRGB_frag,{strength:1.0});
-            let rsplitRGB = new PIXI.Filter(vertex, splitRGB_frag,{strength:-1.0});
-            let fxaa= new PIXI.filters.FXAAFilter();
-            let Anime4K_3DGraphics_AA_Upscale_x2_US1=new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag1);
-            let Anime4K_3DGraphics_AA_Upscale_x2_US2=new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag2);
-            let Anime4K_3DGraphics_AA_Upscale_x2_US3=new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag3);
-            let Anime4K_3DGraphics_AA_Upscale_x2_US4=new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag4,{Orginal:texture});
-            let deband= new PIXI.Filter(vertex,deband_frag);
-            let test=new PIXI.Filter(vertex,test_frag);
-            let filters = [
-                // test,
-                Anime4K_3DGraphics_AA_Upscale_x2_US1,
-                Anime4K_3DGraphics_AA_Upscale_x2_US2,
-                Anime4K_3DGraphics_AA_Upscale_x2_US3,
-                Anime4K_3DGraphics_AA_Upscale_x2_US4,
-                // deband,
-                test,
-                hdr,
-                // cartoon,
-                line,
-                anime4k_deblur_dog,
-                // cas,
-                // rsplitRGB,
-                // fxaa,
-                noiseFilter,
-                // test,
-                // splitRGB,
-            ];
-            stage.filters = filters;
-
-            let update = () =>{
-                let $this = video;
-                if (!$this.paused && !$this.ended) {
-                    renderer.render(stage);
-                    try{
-                      video.requestVideoFrameCallback(update);
-                    }catch(e){
-                      window.requestAnimationFrame(update);
-                    }
+        document.body.addEventListener("keydown", (e) => {
+            if (e && (e.code === "Backquote")) {
+                let toggle = !stage.filters[0].enabled;
+                for (let i in stage.filters) {
+                    stage.filters[i].enabled = toggle;
                 }
+                renderer.render(stage);
+                console.log(toggle);
             }
-            update();
-            video.addEventListener("play", update);
-
-            document.body.addEventListener("keydown", (e) => {
-                if (e && (e.code === "Backquote")) {
-                    let toggle = !stage.filters[0].enabled;
-                    for (let i in stage.filters) {
-                        stage.filters[i].enabled = toggle;
-                    }
-                    renderer.render(stage);
-                    console.log(toggle);
-                }
-                // console.log(e,e.code)
-            });
+            // console.log(e,e.code)
         });
+    });
 }
 getVideoCanvas("video").then(() => {
     console.log("anime4k!");
