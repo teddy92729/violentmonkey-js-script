@@ -5,9 +5,9 @@
 // @match       *://*/*.webm
 // @match       https://sn-video.com/video2019/index.php?data=*
 // @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
-// @match       https://www.youtube.com/watch?v=*
+// @match       https://www.youtube.com/*
 // @grant       none
-// @version     2.2
+// @version     2.4
 // @author      HYTeddy
 // @require     https://teddy92729.github.io/elementCreated.js
 // @require     https://pixijs.download/v7.3.2/pixi.js
@@ -750,31 +750,33 @@ function getVideoCanvas(videoElement) {
 
         //resize canvas when video changed size
         let resize = () => {
-            let style = window.getComputedStyle(video, null);
+            setTimeout(() => {
+                let style = window.getComputedStyle(video, null);
 
-            canvas.style.position = "absolute";
-            canvas.style.display = "block";
-            canvas.style.margin = "auto";
-            canvas.style.top = (style.top === "auto") ? "0px" : style.top;
-            canvas.style.bottom = (style.bottom === "auto") ? "0px" : style.bottom;
-            canvas.style.left = (style.left === "auto") ? "0px" : style.left;
-            canvas.style.right = (style.right === "auto") ? "0px" : style.right;
+                canvas.style.position = "absolute";
+                canvas.style.display = "block";
+                canvas.style.margin = "auto";
+                canvas.style.top = (style.top === "auto") ? "0px" : style.top;
+                canvas.style.bottom = (style.bottom === "auto") ? "0px" : style.bottom;
+                canvas.style.left = (style.left === "auto") ? "0px" : style.left;
+                canvas.style.right = (style.right === "auto") ? "0px" : style.right;
 
-            if (parseInt(style.width.replace("px", "")) / video.videoWidth >= parseInt(style.height.replace("px", "")) / video.videoHeight) {
-                canvas.style.height = style.height;
-                canvas.style.width = "unset";
-            } else {
-                canvas.style.height = "unset";
-                canvas.style.width = style.width;
-            }
+                if (parseInt(style.width.replace("px", "")) / video.videoWidth >= parseInt(style.height.replace("px", "")) / video.videoHeight) {
+                    canvas.style.height = style.height;
+                    canvas.style.width = "unset";
+                } else {
+                    canvas.style.height = "unset";
+                    canvas.style.width = style.width;
+                }
 
-            let scale = Math.min(2, 3110400 / (video.videoWidth * video.videoHeight));
-            let width = scale * video.videoWidth;
-            let height = scale * video.videoHeight;
-            // console.log(`${video.videoWidth}x${video.videoHeight}=>${width}x${height}`);
-            sprite.width = width;
-            sprite.height = height;
-            renderer.resize(width, height);
+                let scale = Math.min(2, 3110400 / (video.videoWidth * video.videoHeight));
+                let width = Math.ceil(scale * video.videoWidth);
+                let height = Math.ceil(scale * video.videoHeight);
+                // console.log(`${video.videoWidth}x${video.videoHeight}=>${width}x${height}`);
+                sprite.width = width;
+                sprite.height = height;
+                renderer.resize(width, height);
+            }, 100);
         }
         resize();
         (new ResizeObserver(resize)).observe(video);
@@ -833,7 +835,6 @@ function getVideoCanvas(videoElement) {
         // video.addEventListener("play", update);
         video.addEventListener("seeked", () => renderer.render(stage));
 
-
         document.body.addEventListener("keydown", (e) => {
             if (e && (e.code === "Backquote")) {
                 let toggle = !stage.filters[0].enabled;
@@ -845,11 +846,24 @@ function getVideoCanvas(videoElement) {
             }
             // console.log(e,e.code)
         });
-
+        return [video, canvas];
     });
 }
+
 (async () => {
-    getVideoCanvas(await elementCreated("video")).then(() => {
-        console.log("anime4k!");
+    getVideoCanvas(await elementCreated("video")).then(([video, canvas]) => {
+        if (window.location.href.match("www\.youtube\.com\/")) {
+            let setQuality = async () => {
+                // lock video quality to 1080p or highest below
+                let ytplayer = await elementCreated("#movie_player");
+                let qualities = ytplayer.getAvailableQualityLevels();
+                if (qualities.includes("hd1080"))
+                    ytplayer.setPlaybackQualityRange("hd1080");
+                else
+                    ytplayer.setPlaybackQualityRange(qualities[0]);
+            };
+            setQuality();
+            video.addEventListener("resize", setQuality);
+        }
     });
 })();
