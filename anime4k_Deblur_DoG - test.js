@@ -7,7 +7,7 @@
 // @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
 // @match       https://www.youtube.com/watch?v=*
 // @grant       none
-// @version     2.1.2
+// @version     2.2
 // @author      HYTeddy
 // @require     https://teddy92729.github.io/elementCreated.js
 // @require     https://pixijs.download/v7.3.2/pixi.js
@@ -726,48 +726,51 @@ void main() {
 }
 `;
 function getVideoCanvas(videoElement) {
-    return new Promise(async (r1) => {
-        const video = (typeof videoElement === "string") ? (await elementCreated(videoElement)) : videoElement;
-        if (video.readyState > 0)
-            r1(video);
-        else
-            video.addEventListener("loadedmetadata", () => { r1(video) });
-    }).then(async (video) => {
-        // let renderer = new PIXI.Renderer();
-        let renderer = await PIXI.autoDetectRenderer({});
-        let canvas = renderer.view;
-        video.parentNode.insertBefore(canvas, video.nextSibling);
+    return new Promise((resolve) => {
+        if (!(videoElement instanceof HTMLVideoElement)) throw new Error("getVideoCanvas: invalid arguments");
 
+        const video = videoElement;
+        // check video is ready.
+        if (video.readyState > 0)
+            resolve(video);
+        else
+            video.addEventListener("loadedmetadata", () => { resolve(video) });
+    }).then((video) => {
+        // create canvas with PIXI.autoDetectRenderer
+        let renderer = PIXI.autoDetectRenderer({});
+        let canvas = renderer.view;
+        // cover canvas on video and set video invisible
+        video.parentNode.insertBefore(canvas, video.nextSibling);
+        video.style.visibility = "hidden";
+        //create texture from video
         let stage = new PIXI.Container();
         let texture = PIXI.Texture.from(video);
         let sprite = new PIXI.Sprite(texture);
         stage.addChild(sprite);
-        video.style.visibility = "hidden";
+
+        //resize canvas when video changed size
         let resize = () => {
             let style = window.getComputedStyle(video, null);
-            let width = parseInt(style.width.replace("px", "")),
-                height = parseInt(style.height.replace("px", ""));
-            let _height = height;
-            if (width / height >= 1)
-                height = Math.round(width * video.videoHeight / video.videoWidth);
-            else
-                width = Math.round(height * video.videoWidth / video.videoHeight);
 
             canvas.style.position = "absolute";
             canvas.style.display = "block";
-            let transformT, transformL;
-            console.log(style.top, style.left);
-            if (style.top === "0px" || style.top === "auto")
-                canvas.style.top = `${Math.round((_height - height) / 2)}px`;
-            else
-                canvas.style.top = style.top;
-            canvas.style.left = "50%";
-            canvas.style.transform = `translate( -50%, 0%)`;
-            canvas.style.width = width + "px";
-            canvas.style.height = height + "px";
+            canvas.style.margin = "auto";
+            canvas.style.top = (style.top === "auto") ? "0px" : style.top;
+            canvas.style.bottom = (style.bottom === "auto") ? "0px" : style.bottom;
+            canvas.style.left = (style.left === "auto") ? "0px" : style.left;
+            canvas.style.right = (style.right === "auto") ? "0px" : style.right;
+
+            if (parseInt(style.width.replace("px", "")) / video.videoWidth >= parseInt(style.height.replace("px", "")) / video.videoHeight) {
+                canvas.style.height = style.height;
+                canvas.style.width = "unset";
+            } else {
+                canvas.style.height = "unset";
+                canvas.style.width = style.width;
+            }
+
             let scale = Math.min(2, 3110400 / (video.videoWidth * video.videoHeight));
-            width = scale * video.videoWidth;
-            height = scale * video.videoHeight;
+            let width = scale * video.videoWidth;
+            let height = scale * video.videoHeight;
             // console.log(`${video.videoWidth}x${video.videoHeight}=>${width}x${height}`);
             sprite.width = width;
             sprite.height = height;
@@ -777,7 +780,6 @@ function getVideoCanvas(videoElement) {
         (new ResizeObserver(resize)).observe(video);
         // video.addEventListener("resize", resize);
         video.addEventListener("progress", resize);
-
 
         let anime4k_deblur_dog = new PIXI.Filter(null, anime4k_deblur_dog_frag);
         let cartoon = new PIXI.Filter(vertex, cartoon_frag);
@@ -797,10 +799,10 @@ function getVideoCanvas(videoElement) {
         let test = new PIXI.Filter(vertex, test_frag);
         let filters = [
             // test,
-            Anime4K_3DGraphics_AA_Upscale_x2_US1,
-            Anime4K_3DGraphics_AA_Upscale_x2_US2,
-            Anime4K_3DGraphics_AA_Upscale_x2_US3,
-            Anime4K_3DGraphics_AA_Upscale_x2_US4,
+            // Anime4K_3DGraphics_AA_Upscale_x2_US1,
+            // Anime4K_3DGraphics_AA_Upscale_x2_US2,
+            // Anime4K_3DGraphics_AA_Upscale_x2_US3,
+            // Anime4K_3DGraphics_AA_Upscale_x2_US4,
             // deband,
             test,
             hdr,
@@ -821,15 +823,16 @@ function getVideoCanvas(videoElement) {
             if (!video.paused && !video.ended && update_lock) {
                 update_lock = 0;
                 renderer.render(stage);
-                setTimeout(() => {
+                video.requestVideoFrameCallback(() => {
                     update_lock = 1;
-                    window.requestAnimationFrame(update);
-                }, 20);
-
+                });
             }
+            window.requestAnimationFrame(update);
         }
         update();
-        video.addEventListener("play", update);
+        // video.addEventListener("play", update);
+        video.addEventListener("seeked", () => renderer.render(stage));
+
 
         document.body.addEventListener("keydown", (e) => {
             if (e && (e.code === "Backquote")) {
@@ -842,8 +845,11 @@ function getVideoCanvas(videoElement) {
             }
             // console.log(e,e.code)
         });
+
     });
 }
-getVideoCanvas("video").then(() => {
-    console.log("anime4k!");
-});
+(async () => {
+    getVideoCanvas(await elementCreated("video")).then(() => {
+        console.log("anime4k!");
+    });
+})();
