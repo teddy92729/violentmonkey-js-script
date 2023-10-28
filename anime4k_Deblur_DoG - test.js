@@ -7,7 +7,7 @@
 // @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
 // @match       https://www.youtube.com/*
 // @grant       none
-// @version     2.4
+// @version     2.5
 // @author      HYTeddy
 // @require     https://teddy92729.github.io/elementCreated.js
 // @require     https://pixijs.download/v7.3.2/pixi.js
@@ -749,8 +749,12 @@ function getVideoCanvas(videoElement) {
         stage.addChild(sprite);
 
         //resize canvas when video changed size
+        let resize_lock = 1;
         let resize = () => {
-            setTimeout(() => {
+            if (!resize_lock) return;
+            resize_lock = 0;
+            window.requestIdleCallback(() => {
+                resize_lock = 1;
                 let style = window.getComputedStyle(video, null);
 
                 canvas.style.position = "absolute";
@@ -776,7 +780,7 @@ function getVideoCanvas(videoElement) {
                 sprite.width = width;
                 sprite.height = height;
                 renderer.resize(width, height);
-            }, 100);
+            }, { timeout: 100 });
         }
         resize();
         (new ResizeObserver(resize)).observe(video);
@@ -784,20 +788,20 @@ function getVideoCanvas(videoElement) {
         video.addEventListener("progress", resize);
 
         let anime4k_deblur_dog = new PIXI.Filter(null, anime4k_deblur_dog_frag);
-        let cartoon = new PIXI.Filter(vertex, cartoon_frag);
-        let cas = new PIXI.Filter(vertex, cas_frag);
+        // let cartoon = new PIXI.Filter(vertex, cartoon_frag);
+        // let cas = new PIXI.Filter(vertex, cas_frag);
         let hdr = new PIXI.Filter(vertex, hdr_frag);
         let noiseFilter = new PIXI.filters.NoiseFilter();
         noiseFilter.noise = 0.02;
         let line = new PIXI.Filter(vertex, line_frag);
-        let splitRGB = new PIXI.Filter(vertex, splitRGB_frag, { strength: 1.0 });
-        let rsplitRGB = new PIXI.Filter(vertex, splitRGB_frag, { strength: -1.0 });
-        let fxaa = new PIXI.filters.FXAAFilter();
-        let Anime4K_3DGraphics_AA_Upscale_x2_US1 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag1);
-        let Anime4K_3DGraphics_AA_Upscale_x2_US2 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag2);
-        let Anime4K_3DGraphics_AA_Upscale_x2_US3 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag3);
-        let Anime4K_3DGraphics_AA_Upscale_x2_US4 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag4, { Orginal: texture });
-        let deband = new PIXI.Filter(vertex, deband_frag);
+        // let splitRGB = new PIXI.Filter(vertex, splitRGB_frag, { strength: 1.0 });
+        // let rsplitRGB = new PIXI.Filter(vertex, splitRGB_frag, { strength: -1.0 });
+        // let fxaa = new PIXI.filters.FXAAFilter();
+        // let Anime4K_3DGraphics_AA_Upscale_x2_US1 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag1);
+        // let Anime4K_3DGraphics_AA_Upscale_x2_US2 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag2);
+        // let Anime4K_3DGraphics_AA_Upscale_x2_US3 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag3);
+        // let Anime4K_3DGraphics_AA_Upscale_x2_US4 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag4, { Orginal: texture });
+        // let deband = new PIXI.Filter(vertex, deband_frag);
         let test = new PIXI.Filter(vertex, test_frag);
         let filters = [
             // test,
@@ -806,8 +810,8 @@ function getVideoCanvas(videoElement) {
             // Anime4K_3DGraphics_AA_Upscale_x2_US3,
             // Anime4K_3DGraphics_AA_Upscale_x2_US4,
             // deband,
-            test,
             hdr,
+            test,
             // cartoon,
             line,
             anime4k_deblur_dog,
@@ -851,19 +855,25 @@ function getVideoCanvas(videoElement) {
 }
 
 (async () => {
-    getVideoCanvas(await elementCreated("video")).then(([video, canvas]) => {
+    getVideoCanvas(await elementCreated("video")).then(async ([video, canvas]) => {
         if (window.location.href.match("www\.youtube\.com\/")) {
-            let setQuality = async () => {
+            let ytplayer = await elementCreated("#movie_player");
+            let setQuality = () => {
                 // lock video quality to 1080p or highest below
-                let ytplayer = await elementCreated("#movie_player");
                 let qualities = ytplayer.getAvailableQualityLevels();
+                console.log("set quality");
                 if (qualities.includes("hd1080"))
                     ytplayer.setPlaybackQualityRange("hd1080");
                 else
                     ytplayer.setPlaybackQualityRange(qualities[0]);
             };
             setQuality();
-            video.addEventListener("resize", setQuality);
+            video.addEventListener("progress", setQuality);
+        }
+        if (window.location.href.match("ani\.gamer\.com\.tw\/animeVideo\.php")) {
+            canvas.addEventListener("click", () => {
+                video.dispatchEvent(new Event("click"));
+            });
         }
     });
 })();
