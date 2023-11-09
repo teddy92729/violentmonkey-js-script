@@ -7,7 +7,7 @@
 // @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
 // @match       https://www.youtube.com/*
 // @grant       none
-// @version     2.6
+// @version     2.6.1
 // @author      HYTeddy
 // @require     https://teddy92729.github.io/elementCreated.js
 // @require     https://pixijs.download/v7.3.2/pixi.js
@@ -282,7 +282,7 @@ out vec4 color;
 #define MAIN_texOff(offset) MAIN_tex(MAIN_pos+(offset)*MAIN_pt)
 //-------------------------------------------
 
-#define HDRPower 1.3
+#define HDRPower 1.2
 #define radius1 7.475000
 #define radius2 7.547000
 vec4 hook(){
@@ -527,7 +527,7 @@ out vec4 color;
 #define MAIN_texOff(offset) MAIN_tex(MAIN_pos+(offset)*MAIN_pt)
 //-------------------------------------------
 
-#define STRENGTH 4.0
+#define STRENGTH 2.71828
 
 vec4 hook() {
     vec2 f0 = fract(MAIN_pos * MAIN_size);
@@ -786,17 +786,18 @@ function getVideoCanvas(videoElement) {
         (new ResizeObserver(resize)).observe(video);
         // video.addEventListener("resize", resize);
         video.addEventListener("progress", resize);
+        video.addEventListener("play", resize);
 
         let anime4k_deblur_dog = new PIXI.Filter(null, anime4k_deblur_dog_frag);
-        // let cartoon = new PIXI.Filter(vertex, cartoon_frag);
+        let cartoon = new PIXI.Filter(vertex, cartoon_frag);
         // let cas = new PIXI.Filter(vertex, cas_frag);
         let hdr = new PIXI.Filter(vertex, hdr_frag);
         let noiseFilter = new PIXI.filters.NoiseFilter();
-        noiseFilter.noise = -0.01;
+        noiseFilter.noise = 0.02;
         let line = new PIXI.Filter(vertex, line_frag);
-        let splitRGB = new PIXI.Filter(vertex, splitRGB_frag, { strength: 1.0 });
-        let rsplitRGB = new PIXI.Filter(vertex, splitRGB_frag, { strength: -1.0 });
-        let fxaa = new PIXI.filters.FXAAFilter();
+        let splitRGB = new PIXI.Filter(vertex, splitRGB_frag, { strength: 0.707 });
+        // let rsplitRGB = new PIXI.Filter(vertex, splitRGB_frag, { strength: -1.0 });
+        // let fxaa = new PIXI.filters.FXAAFilter();
         let Anime4K_3DGraphics_AA_Upscale_x2_US1 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag1);
         let Anime4K_3DGraphics_AA_Upscale_x2_US2 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag2);
         let Anime4K_3DGraphics_AA_Upscale_x2_US3 = new PIXI.Filter(vertex, Anime4K_3DGraphics_AA_Upscale_x2_US_frag3);
@@ -805,22 +806,16 @@ function getVideoCanvas(videoElement) {
         let test = new PIXI.Filter(vertex, test_frag);
         let filters = [
             test,
+            cartoon,
             Anime4K_3DGraphics_AA_Upscale_x2_US1,
             Anime4K_3DGraphics_AA_Upscale_x2_US2,
             Anime4K_3DGraphics_AA_Upscale_x2_US3,
             Anime4K_3DGraphics_AA_Upscale_x2_US4,
-            // deband,
-            test,
+            // splitRGB,
             hdr,
-            // cartoon,
+            test,
             line,
             anime4k_deblur_dog,
-            // cas,
-            // rsplitRGB,
-            // noiseFilter,
-
-            // test,
-            // splitRGB,
         ];
         stage.filters = filters;
 
