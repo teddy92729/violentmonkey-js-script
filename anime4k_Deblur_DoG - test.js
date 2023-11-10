@@ -7,7 +7,7 @@
 // @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
 // @match       https://www.youtube.com/*
 // @grant       none
-// @version     2.6.2
+// @version     2.6.3
 // @author      HYTeddy
 // @require     https://teddy92729.github.io/elementCreated.js
 // @require     https://pixijs.download/v7.3.2/pixi.js
@@ -751,13 +751,13 @@ function getVideoCanvas(videoElement) {
         //resize canvas when video changed size
         let videStyleHash = "";
         let resize = () => {
-            console.log("video resize");
-            window.requestIdleCallback(() => {
+            setTimeout(() => {
                 let style = window.getComputedStyle(video, null);
                 let hash = JSON.stringify([style.top, style.bottom, style.left, style.right]);
                 if (videStyleHash === hash) return;
+                setTimeout(() => videStyleHash = "", 100);
                 videStyleHash = hash;
-
+                console.log("video resize");
                 canvas.style.position = "absolute";
                 canvas.style.display = "block";
                 canvas.style.margin = "auto";
@@ -781,7 +781,7 @@ function getVideoCanvas(videoElement) {
                 sprite.width = width;
                 sprite.height = height;
                 renderer.resize(width, height);
-            });
+            }, 160);
         }
         resize();
         (new ResizeObserver(resize)).observe(video);
@@ -872,15 +872,17 @@ let main = async () => {
             setQuality();
             video.addEventListener("progress", setQuality);
             await new Promise((r) => {
+                video.id = "__ANIME4K_VIDEO__";
                 let checkVideoSurvived = new MutationObserver((e) => {
-                    console.log(e);
-                    if (e[0].removedNodes && video) {
-                        console.log("video element miss");
-                        checkVideoSurvived.disconnect();
-                        destroy();
-                        window.requestIdleCallback(main);
-                        r();
-                    };
+                    window.requestIdleCallback(() => {
+                        if (!document.querySelector("#__ANIME4K_VIDEO__")) {
+                            console.log("video element miss");
+                            checkVideoSurvived.disconnect();
+                            destroy();
+                            window.requestIdleCallback(main);
+                            r();
+                        };
+                    });
                 });
                 checkVideoSurvived.observe(ytplayer, { childList: true });
             });
