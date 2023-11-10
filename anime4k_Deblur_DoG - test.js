@@ -7,7 +7,7 @@
 // @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
 // @match       https://www.youtube.com/*
 // @grant       none
-// @version     2.6.1
+// @version     2.6.2
 // @author      HYTeddy
 // @require     https://teddy92729.github.io/elementCreated.js
 // @require     https://pixijs.download/v7.3.2/pixi.js
@@ -561,7 +561,7 @@ out vec4 color;
 //-------------------------------------------
 
 #define power 1.0
-#define range 3.0
+#define range 5.0
 float get_luma(vec3 rgb) {
 	return dot(vec3(0.299, 0.587, 0.114), rgb);
 }
@@ -749,13 +749,14 @@ function getVideoCanvas(videoElement) {
         stage.addChild(sprite);
 
         //resize canvas when video changed size
-        let resize_lock = 1;
+        let videStyleHash = "";
         let resize = () => {
-            if (!resize_lock) return;
-            resize_lock = 0;
+            console.log("video resize");
             window.requestIdleCallback(() => {
-                resize_lock = 1;
                 let style = window.getComputedStyle(video, null);
+                let hash = JSON.stringify([style.top, style.bottom, style.left, style.right]);
+                if (videStyleHash === hash) return;
+                videStyleHash = hash;
 
                 canvas.style.position = "absolute";
                 canvas.style.display = "block";
@@ -780,7 +781,7 @@ function getVideoCanvas(videoElement) {
                 sprite.width = width;
                 sprite.height = height;
                 renderer.resize(width, height);
-            }, { timeout: 100 });
+            });
         }
         resize();
         (new ResizeObserver(resize)).observe(video);
@@ -845,12 +846,19 @@ function getVideoCanvas(videoElement) {
             }
             // console.log(e,e.code)
         });
-        return [video, canvas];
+
+        let destroy = () => {
+            stage.destroy(true);
+            canvas.parentNode.removeChild(canvas);
+            renderer.destroy(true);
+        }
+        return [video, canvas, destroy];
     });
 }
 
-(async () => {
-    getVideoCanvas(await elementCreated("video")).then(async ([video, canvas]) => {
+let main = async () => {
+    getVideoCanvas(await elementCreated("video")).then(async ([video, canvas, destroy]) => {
+        console.log("anime4k");
         if (window.location.href.match("www\.youtube\.com\/")) {
             let ytplayer = await elementCreated("#movie_player");
             let setQuality = () => {
@@ -863,6 +871,20 @@ function getVideoCanvas(videoElement) {
             };
             setQuality();
             video.addEventListener("progress", setQuality);
+            await new Promise((r) => {
+                let checkVideoSurvived = new MutationObserver((e) => {
+                    console.log(e);
+                    if (e[0].removedNodes && video) {
+                        console.log("video element miss");
+                        checkVideoSurvived.disconnect();
+                        destroy();
+                        window.requestIdleCallback(main);
+                        r();
+                    };
+                });
+                checkVideoSurvived.observe(ytplayer, { childList: true });
+            });
+            return;
         }
         if (window.location.href.match("ani\.gamer\.com\.tw\/animeVideo\.php")) {
             canvas.addEventListener("click", () => {
@@ -870,4 +892,7 @@ function getVideoCanvas(videoElement) {
             });
         }
     });
-})();
+};
+window.requestIdleCallback(main);
+
+
