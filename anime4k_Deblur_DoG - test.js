@@ -7,7 +7,7 @@
 // @match       https://ani.gamer.com.tw/animeVideo.php?sn=*
 // @match       https://www.youtube.com/*
 // @grant       none
-// @version     2.6.3
+// @version     2.6.4
 // @author      HYTeddy
 // @require     https://teddy92729.github.io/elementCreated.js
 // @require     https://pixijs.download/v7.3.2/pixi.js
@@ -189,7 +189,7 @@ out vec4 color;
 #define MAIN_texOff(offset) MAIN_tex(MAIN_pos+(offset)*MAIN_pt)
 //-------------------------------------------
 #define EdgeSlope 2.0
-#define Power     0.1
+#define Power     1.0
 float get_luma(vec4 rgba) {
 	return dot(vec4(0.299, 0.587, 0.114, 0.0), rgba);
 }
@@ -527,7 +527,7 @@ out vec4 color;
 #define MAIN_texOff(offset) MAIN_tex(MAIN_pos+(offset)*MAIN_pt)
 //-------------------------------------------
 
-#define STRENGTH 2.71828
+#define STRENGTH 1.0
 
 vec4 hook() {
     vec2 f0 = fract(MAIN_pos * MAIN_size);
@@ -543,7 +543,7 @@ void main() {
     color = hook();
 }
 `;
-const test_frag =//use to deband
+const test_frag =//maybe use to deband
     `#version 300 es
 precision highp float;
 in vec2 vTextureCoord;
@@ -561,7 +561,9 @@ out vec4 color;
 //-------------------------------------------
 
 #define power 1.0
-#define range 5.0
+#define range 1.0
+
+#define pi_2 1.57079632679
 float get_luma(vec3 rgb) {
 	return dot(vec3(0.299, 0.587, 0.114), rgb);
 }
@@ -595,6 +597,10 @@ vec4 hook() {
     c=bezier1+bezier2-c;
     return vec4(c,1.0);
 
+    //bezier1=mix(bezier1,c,dot(c,bezier1)/length(bezier1));
+    //bezier2=mix(bezier2,c,dot(c,bezier2)/length(bezier2));
+    //c=bezier1+bezier2-c;
+    //return vec4(c,1.0);
 }
 
 void main() {
@@ -751,7 +757,7 @@ function getVideoCanvas(videoElement) {
         //resize canvas when video changed size
         let videStyleHash = "";
         let resize = () => {
-            setTimeout(() => {
+            requestIdleCallback(() => {
                 let style = window.getComputedStyle(video, null);
                 let hash = JSON.stringify([style.top, style.bottom, style.left, style.right]);
                 if (videStyleHash === hash) return;
@@ -781,7 +787,7 @@ function getVideoCanvas(videoElement) {
                 sprite.width = width;
                 sprite.height = height;
                 renderer.resize(width, height);
-            }, 160);
+            }, { timeout: 160 });
         }
         resize();
         (new ResizeObserver(resize)).observe(video);
@@ -813,6 +819,7 @@ function getVideoCanvas(videoElement) {
             Anime4K_3DGraphics_AA_Upscale_x2_US3,
             Anime4K_3DGraphics_AA_Upscale_x2_US4,
             // splitRGB,
+            // test,
             hdr,
             test,
             line,
