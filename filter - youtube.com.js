@@ -15,10 +15,11 @@ const settings = {
     "skipAds": true,
     "blockComments": false,
     "blockShorts": false,
-    "tryFix": true,
+    "tryFix": false,
     "prunePlayer": false,
     "advanced": {
         "skipAdsWaitTime": 200,
+        "skipAdsClickTime": 200,
         "tryFixLazyLoadTime": 2000,
         "logPrefix": "[filter - youtube.com]",
     }
@@ -86,36 +87,25 @@ let log = console.log.bind(console, settings.advanced.logPrefix);
     (() => {
         if (!settings.skipAds) return;
 
-        let blockVideoAds = () => {
+        let blockAds = () => {
             log("waiting ads")
-            elementCreated(".ytp-ad-player-overlay").then(() => {
-                log("playing ads");
-                return elementCreated("video");
-            }).then(waitVideoLoaded)
-                .then((video) => {
-                    log("skip ads");
-                    after(settings.advanced.skipAdsWaitTime).then(() => {
-                        video.currentTime = video.duration;
-                        blockVideoAds();
-                    });
-                }).catch(() => {
-                    after(settings.advanced.skipAdsWaitTime).then(blockVideoAds);
+            elementCreated(".ytp-ad-player-overlay")
+                .then(() =>
+                    elementCreated(".ytp-ad-skip-button-slot", settings.advanced.skipAdsClickTime)
+                        .then((button) => {
+                            log("click skip ads");
+                            button.click();
+                        })
+                        .catch(() => {
+                            log("no click ads");
+                            return elementCreated("video").then(waitVideoLoaded).then((video) => {
+                                video.currentTime = video.duration;
+                            });
+                        })
+                ).finally(() => {
+                    after(settings.advanced.skipAdsWaitTime).then(blockAds);
                 });
         }
-        after(settings.advanced.skipAdsWaitTime).then(blockVideoAds);
-
-        let skipClick = () => {
-            //click skip button
-            elementCreated(".ytp-ad-skip-button-slot").then((button) => {
-                log("skip ads");
-                return after(settings.advanced.skipAdsWaitTime).then(() => {
-                    button.click();
-                    skipClick();
-                });
-            }).catch(() =>
-                after(settings.advanced.skipAdsWaitTime).then(skipClick)
-            );
-        }
-        after(settings.advanced.skipAdsWaitTime).then(skipClick);
+        after(settings.advanced.skipAdsWaitTime).then(blockAds);
     })();
 })();
